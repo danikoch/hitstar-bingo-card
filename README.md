@@ -21,7 +21,6 @@ and it runs.
 - **Fullscreen** — expand the field to the whole display when the text needs to reach the
   far end of the table.
 - **Draw on it** — finger or stylus, over the text if you like, with undo and a real eraser.
-- **Legend** under the card counting how many fields of each colour you already got (e.g. `3/5`).
 - **Everything is saved on the device** — card, marks, colours, text and settings survive
   a reload or an accidentally closed tab.
 - **Installable and offline capable** (PWA) — add to the home screen, works with no
@@ -102,7 +101,7 @@ There is nothing to compile.
 ## Notes for hacking on it
 
 - Changed something and the phone still shows the old version? Bump `CACHE` in `sw.js`
-  (`hitstar-bingo-v3` → `-v4`); the old cache is dropped on the next visit.
+  (`hitstar-bingo-v4` → `-v5`); the old cache is dropped on the next visit.
 - The text is fitted by binary-searching the font size against a hidden measuring element.
   Three traps live here, all commented in the source:
   1. That element shares its typography with the textarea through one CSS rule

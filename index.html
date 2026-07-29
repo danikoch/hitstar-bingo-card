@@ -232,21 +232,6 @@
     white-space: pre-wrap; overflow-wrap: break-word;
   }
 
-  /* ---------- legend ---------- */
-  #legend {
-    flex: 0 0 auto;
-    display: flex; flex-wrap: wrap; justify-content: center;
-    gap: 6px 10px; padding-top: 12px;
-    font-size: 12.5px; color: var(--fg-dim);
-  }
-  #legend div { display: flex; align-items: center; gap: 6px; }
-  #legend i {
-    width: 13px; height: 13px; border-radius: 4px;
-    background: var(--c); display: inline-block; flex: 0 0 auto;
-  }
-  #legend b { color: var(--fg); font-variant-numeric: tabular-nums; font-weight: 700; }
-  #legend div.done { opacity: .45; }
-
   /* ---------- bingo banner ---------- */
   #banner {
     position: fixed; inset: 0;
@@ -409,7 +394,6 @@
   <div id="note-measure" aria-hidden="true"></div>
 </div>
 
-<div id="legend"></div>
 
 <div id="banner" aria-live="polite"><strong>BINGO!</strong></div>
 
@@ -580,7 +564,7 @@
   /* --------------------------------------------------------------- render */
 
   const $ = (sel) => document.querySelector(sel);
-  const cardEl = $("#card"), legendEl = $("#legend");
+  const cardEl = $("#card");
 
   // white or black tick, whichever survives on the given background
   const luminance = (hex) => {
@@ -618,26 +602,7 @@
         (state.marks[i] ? ", marked" : ""));
       return b;
     }));
-
-    renderLegend();
   }
-
-  function renderLegend() {
-    const rows = state.palette.map((cat) => {
-      const idx = state.card.map((c, i) => (c.catId === cat.id ? i : -1)).filter((i) => i >= 0);
-      if (!idx.length) return null;
-      const done = idx.filter((i) => state.marks[i]).length;
-      const el = document.createElement("div");
-      el.style.setProperty("--c", cat.color);
-      if (done === idx.length) el.className = "done";
-      el.innerHTML = `<i></i>${cat.name ? escapeHtml(cat.name) + " " : ""}<b>${done}/${idx.length}</b>`;
-      return el;
-    }).filter(Boolean);
-    legendEl.replaceChildren(...rows);
-  }
-
-  const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   /* ------------------------------------------------------------ marking */
 
@@ -1034,7 +999,8 @@
       name.value = cat.name || "";
       name.placeholder = "Name (optional)";
       name.maxLength = 24;
-      name.addEventListener("input", () => { cat.name = name.value; save(); renderLegend(); });
+      // the name is only read out by screen readers now, via each cell's label
+      name.addEventListener("input", () => { cat.name = name.value; save(); render(); });
 
       const del = document.createElement("button");
       del.className = "del";
