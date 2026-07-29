@@ -168,44 +168,69 @@
     background: none; border: none; outline: none; resize: none;
     color: var(--fg);
     font-size: 20px;              /* replaced by the fitted size */
-    overflow-y: auto;
+    overflow: hidden;             /* fitNote() turns scrolling on only if needed */
     display: block;
   }
-  /* Keep the text clear of the clear button, symmetrically so it stays centred.
-     fitNote() reads these paddings, so this rule alone decides the text width. */
-  #note-wrap:not(.empty) #note { padding-left: 44px; padding-right: 44px; }
+  /* The text no longer needs side room for the buttons: fitNote() reserves the
+     toolbar's own strip along the top instead, which leaves the full width for
+     text. fitNote() reads the paddings from here, so this is the only place
+     that decides the text box. */
   #note::placeholder { font-weight: 600; font-size: 15px; color: var(--fg-dim); letter-spacing: 0; }
-  #note-clear {
-    position: absolute; top: 6px; right: 6px;
+
+  /* the drawing layer sits above the text so strokes can annotate it,
+     and only takes pointer events while draw mode is on */
+  #ink {
+    position: absolute; inset: 0; z-index: 1;
+    width: 100%; height: 100%;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  body.note-draw #ink { pointer-events: auto; touch-action: none; }
+  body.note-draw #note { pointer-events: none; }
+  body.note-draw #note::placeholder { color: transparent; }
+
+  #note-tools {
+    position: absolute; z-index: 2;
+    top: 6px; right: 6px;
+    display: flex; gap: 4px;
+  }
+  #note-tools button {
     width: 32px; height: 32px; border-radius: 9px;
     display: grid; place-items: center;
     background: var(--bg-elev-2); color: var(--fg-dim);
     border: 1px solid var(--line);
-    font-size: 19px; line-height: 1; cursor: pointer;
-    touch-action: manipulation;
+    cursor: pointer; touch-action: manipulation;
   }
-  #note-clear:active { transform: scale(.9); }
-  #note-clear[hidden] { display: none; }   /* beats the display:grid above */
+  #note-tools button:active { transform: scale(.9); }
+  #note-tools button[hidden] { display: none; }   /* beats the display:grid above */
+  #note-tools svg {
+    width: 17px; height: 17px; stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+  #note-mode[aria-pressed="true"], #note-erase[aria-pressed="true"] {
+    background: var(--accent); color: #16161c; border-color: transparent;
+  }
+
+  /* ---------- note fullscreen ---------- */
+  body.note-full #note-wrap {
+    position: fixed; inset: 0; z-index: 60;
+    height: auto; margin: 0;
+    border: none; border-radius: 0;
+    background: var(--bg);
+  }
+  body.note-full #note {
+    padding-bottom: calc(var(--safe-b) + 14px);
+    padding-left: 20px; padding-right: 20px;
+  }
+  body.note-full #note-tools { top: calc(var(--safe-t) + 8px); right: 10px; }
+  body.note-full #note-tools button { width: 38px; height: 38px; border-radius: 11px; }
+  body.note-full #note-tools svg { width: 20px; height: 20px; }
+
   #note-measure {
     position: absolute; left: -9999px; top: 0;
     visibility: hidden; pointer-events: none;
     white-space: pre-wrap; overflow-wrap: break-word;
   }
-
-  /* ---------- legend ---------- */
-  #legend {
-    flex: 0 0 auto;
-    display: flex; flex-wrap: wrap; justify-content: center;
-    gap: 6px 10px; padding-top: 12px;
-    font-size: 12.5px; color: var(--fg-dim);
-  }
-  #legend div { display: flex; align-items: center; gap: 6px; }
-  #legend i {
-    width: 13px; height: 13px; border-radius: 4px;
-    background: var(--c); display: inline-block; flex: 0 0 auto;
-  }
-  #legend b { color: var(--fg); font-variant-numeric: tabular-nums; font-weight: 700; }
-  #legend div.done { opacity: .45; }
 
   /* ---------- bingo banner ---------- */
   #banner {
@@ -348,11 +373,27 @@
   <textarea id="note" placeholder="Tap to write — the text scales to fill the field"
             aria-label="Note, shown large enough to read across the table"
             autocomplete="off" autocapitalize="sentences" spellcheck="false"></textarea>
-  <button id="note-clear" aria-label="Clear the text" title="Clear the text" hidden>×</button>
+  <canvas id="ink" aria-label="Drawing surface" role="img"></canvas>
+  <div id="note-tools">
+    <button id="note-mode" aria-label="Switch to drawing" title="Draw">
+      <svg viewBox="0 0 24 24"><path d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z"/><path d="M14 6l4 4"/></svg>
+    </button>
+    <button id="note-undo" aria-label="Undo the last stroke" title="Undo" hidden>
+      <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a5.5 5.5 0 0 1 0 11H9"/></svg>
+    </button>
+    <button id="note-erase" aria-label="Eraser" title="Eraser" aria-pressed="false" hidden>
+      <svg viewBox="0 0 24 24"><path d="M20 20H9l-5-5a2 2 0 0 1 0-2.8l7.6-7.6a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8L12 20"/></svg>
+    </button>
+    <button id="note-full" aria-label="Show fullscreen" title="Fullscreen">
+      <svg viewBox="0 0 24 24"><path d="M15 4h5v5"/><path d="M9 20H4v-5"/><path d="M20 4l-7 7"/><path d="M4 20l7-7"/></svg>
+    </button>
+    <button id="note-clear" aria-label="Clear the text" title="Clear" hidden>
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+    </button>
+  </div>
   <div id="note-measure" aria-hidden="true"></div>
 </div>
 
-<div id="legend"></div>
 
 <div id="banner" aria-live="polite"><strong>BINGO!</strong></div>
 
@@ -420,6 +461,7 @@
     marks: [],
     seen: [],          // indexes of bingo lines already celebrated
     note: "",
+    ink: [],           // strokes, see the drawing section
   };
 
   function load() {
@@ -433,6 +475,7 @@
       s.settings = Object.assign({ even: true, spread: true, haptics: true }, s.settings);
       s.seen = Array.isArray(s.seen) ? s.seen : [];
       s.note = typeof s.note === "string" ? s.note : "";
+      s.ink = Array.isArray(s.ink) ? s.ink.filter((k) => Array.isArray(k) && k.length >= 2) : [];
       return s;
     } catch { return null; }
   }
@@ -497,8 +540,11 @@
     state.card = best;
     state.marks = new Array(CELLS).fill(false);
     state.seen = [];
+    state.ink = [];        // the drawing belongs to the round that just ended
+    undos = [];
     save();
     render();
+    layoutNote();
   }
 
   /* ---------------------------------------------------------------- bingo */
@@ -518,7 +564,7 @@
   /* --------------------------------------------------------------- render */
 
   const $ = (sel) => document.querySelector(sel);
-  const cardEl = $("#card"), legendEl = $("#legend");
+  const cardEl = $("#card");
 
   // white or black tick, whichever survives on the given background
   const luminance = (hex) => {
@@ -556,26 +602,7 @@
         (state.marks[i] ? ", marked" : ""));
       return b;
     }));
-
-    renderLegend();
   }
-
-  function renderLegend() {
-    const rows = state.palette.map((cat) => {
-      const idx = state.card.map((c, i) => (c.catId === cat.id ? i : -1)).filter((i) => i >= 0);
-      if (!idx.length) return null;
-      const done = idx.filter((i) => state.marks[i]).length;
-      const el = document.createElement("div");
-      el.style.setProperty("--c", cat.color);
-      if (done === idx.length) el.className = "done";
-      el.innerHTML = `<i></i>${cat.name ? escapeHtml(cat.name) + " " : ""}<b>${done}/${idx.length}</b>`;
-      return el;
-    }).filter(Boolean);
-    legendEl.replaceChildren(...rows);
-  }
-
-  const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   /* ------------------------------------------------------------ marking */
 
@@ -625,7 +652,14 @@
 
   const noteWrap = $("#note-wrap"), noteEl = $("#note"),
         noteClear = $("#note-clear"), measure = $("#note-measure");
-  const MIN_PT = 13, MAX_PT = 260;
+  const tools = $("#note-tools");
+  const MIN_PT = 13, MAX_PT = 900;
+  /* A textarea wraps about a pixel earlier than a div of the same width. That
+     normally goes unnoticed, but the search below converges on exactly the size
+     where a line break flips, so the two disagree precisely where it hurts.
+     Measuring against a slightly narrower box keeps the estimate on the safe
+     side: the div never uses fewer lines than the textarea will. */
+  const SAFE = 2;
 
   // Grow the text to the largest size that still fits the panel, then centre it.
   function fitNote() {
@@ -636,17 +670,30 @@
       return;
     }
 
-    // The paddings come from CSS; padding-bottom doubles as the vertical base
-    // because padding-top is what this function writes.
+    // Paddings come from CSS; padding-bottom doubles as the vertical base
+    // because padding-top is what this function writes. The toolbar's strip is
+    // reserved along the top so no line of text can run underneath it.
     const cs = getComputedStyle(noteEl);
     const padY = parseFloat(cs.paddingBottom);
-    const boxW = noteWrap.clientWidth - 2 - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    const boxH = noteWrap.clientHeight - 2 - 2 * padY;   // 2 = the 1px border either side
-    if (boxW <= 0 || boxH <= 0) return;
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const strip = tools.offsetHeight + 6;
+    const boxH = noteEl.clientHeight - 2 * padY - strip;
+    if (noteEl.clientWidth - padX <= 0 || boxH <= 0) return;
 
-    measure.style.width = boxW + "px";
     // a trailing newline has no height of its own unless something follows it
     measure.textContent = text.endsWith("\n") ? text + " " : text;
+
+    /* Scroll only as a last resort. A classic scrollbar (desktop, and older
+       mobile browsers) eats into the text width the moment it appears, which
+       re-wraps the text and invalidates the size we just measured. So the
+       textarea stays overflow:hidden while the text fits, and only text that is
+       still too long at the minimum size gets a scrollbar. */
+    measure.style.width = (noteEl.clientWidth - padX - SAFE) + "px";
+    measure.style.fontSize = MIN_PT + "px";
+    noteEl.style.overflowY = measure.scrollHeight > boxH + .5 ? "auto" : "hidden";
+
+    const boxW = noteEl.clientWidth - padX - SAFE;   // re-read: a scrollbar may have appeared
+    measure.style.width = boxW + "px";
 
     let lo = MIN_PT, hi = Math.min(MAX_PT, boxH + 4), best = MIN_PT;
     for (let i = 0; i < 10; i++) {
@@ -664,17 +711,200 @@
     // would push the text off centre by a couple of pixels here.
     measure.style.fontSize = best + "px";
     const linesH = measure.getBoundingClientRect().height;
-    noteEl.style.paddingTop = (padY + Math.max(0, (boxH - linesH) / 2)) + "px";
+    noteEl.style.paddingTop = (padY + strip + Math.max(0, (boxH - linesH) / 2)) + "px";
   }
 
+  /* ----------------------------------------------------------- drawing */
+
+  const ink = $("#ink"), ictx = ink.getContext("2d");
+  const modeBtn = $("#note-mode"), undoBtn = $("#note-undo"), eraseBtn = $("#note-erase");
+  const PEN = .015;         // pen width, as a fraction of the field's width
+  const ERASER = .04;       // eraser radius, likewise
+  const MAX_UNDO = 25, MAX_POINTS = 24000;
+
+  let drawMode = false, eraseMode = false;
+  let live = null;          // the stroke being drawn right now
+  let pointer = null;       // id of the finger/pen we are following
+  let undos = [];
+
+  /* Strokes are flat [x0,y0,x1,y1,…] arrays. Both axes are divided by the
+     field's *width*, so a stroke never distorts when the field changes shape —
+     unlike normalising y by the height. inkY then shifts the drawing so it sits
+     centred vertically in whatever box it is rendered into; it is recomputed
+     only on a layout change, never mid-stroke, or the ink would crawl while
+     drawing. */
+  let inkY = 0;
+
+  const inkW = () => ink.clientWidth;
+  const toX = (nx) => nx * inkW();
+  const toY = (ny) => ny * inkW() + inkY;
+
+  function localPoint(e) {
+    const r = ink.getBoundingClientRect();
+    const w = inkW() || 1;
+    return [(e.clientX - r.left) / w, (e.clientY - r.top - inkY) / w];
+  }
+
+  function centreInk() {
+    const w = inkW(), h = ink.clientHeight;
+    inkY = 0;
+    if (!state.ink.length || !w) return;
+    let lo = Infinity, hi = -Infinity;
+    for (const s of state.ink) {
+      for (let i = 1; i < s.length; i += 2) {
+        if (s[i] < lo) lo = s[i];
+        if (s[i] > hi) hi = s[i];
+      }
+    }
+    if (lo === Infinity) return;
+    inkY = (h - (hi - lo) * w) / 2 - lo * w;
+  }
+
+  function strokePath(s) {
+    const n = s.length / 2;
+    if (n === 1) {                       // a tap is a dot
+      ictx.beginPath();
+      ictx.arc(toX(s[0]), toY(s[1]), ictx.lineWidth / 2, 0, Math.PI * 2);
+      ictx.fill();
+      return;
+    }
+    ictx.beginPath();
+    ictx.moveTo(toX(s[0]), toY(s[1]));
+    for (let i = 1; i < n - 1; i++) {    // smooth: curve through the midpoints
+      const cx = toX(s[i * 2]), cy = toY(s[i * 2 + 1]);
+      ictx.quadraticCurveTo(cx, cy,
+        (cx + toX(s[i * 2 + 2])) / 2, (cy + toY(s[i * 2 + 3])) / 2);
+    }
+    ictx.lineTo(toX(s[(n - 1) * 2]), toY(s[(n - 1) * 2 + 1]));
+    ictx.stroke();
+  }
+
+  function renderInk() {
+    const w = inkW(), h = ink.clientHeight;
+    if (!w || !h) return;
+    const dpr = Math.min(devicePixelRatio || 1, 3);
+    const W = Math.round(w * dpr), H = Math.round(h * dpr);
+    if (ink.width !== W || ink.height !== H) { ink.width = W; ink.height = H; }
+    ictx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ictx.clearRect(0, 0, w, h);
+    ictx.strokeStyle = ictx.fillStyle = getComputedStyle(noteEl).color;
+    ictx.lineCap = ictx.lineJoin = "round";
+    ictx.lineWidth = Math.max(1.5, PEN * w);
+    for (const s of state.ink) strokePath(s);
+    if (live) strokePath(live);
+  }
+
+  function pushUndo() {
+    undos.push(JSON.stringify(state.ink));
+    if (undos.length > MAX_UNDO) undos.shift();
+  }
+
+  // Erasing splits a stroke into the runs of points the eraser missed, so you
+  // rub out part of a line instead of losing the whole thing.
+  function eraseAt(nx, ny) {
+    const r2 = ERASER * ERASER;
+    let hit = false;
+    const kept = [];
+    for (const s of state.ink) {
+      let run = [];
+      const runs = [];
+      for (let i = 0; i < s.length; i += 2) {
+        const dx = s[i] - nx, dy = s[i + 1] - ny;
+        if (dx * dx + dy * dy <= r2) {
+          hit = true;
+          if (run.length) { runs.push(run); run = []; }
+        } else run.push(s[i], s[i + 1]);
+      }
+      if (run.length) runs.push(run);
+      kept.push(...runs);
+    }
+    if (!hit) return false;
+    state.ink = kept;
+    renderInk();
+    return true;
+  }
+
+  ink.addEventListener("pointerdown", (e) => {
+    if (pointer !== null) return;          // ignore extra fingers
+    pointer = e.pointerId;
+    ink.setPointerCapture(e.pointerId);
+    pushUndo();
+    const [nx, ny] = localPoint(e);
+    if (eraseMode) eraseAt(nx, ny);
+    else { live = [nx, ny]; renderInk(); }
+    e.preventDefault();
+  });
+
+  ink.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== pointer) return;
+    const [nx, ny] = localPoint(e);
+    if (eraseMode) { eraseAt(nx, ny); return; }
+    if (!live) return;
+    const dx = nx - live[live.length - 2], dy = ny - live[live.length - 1];
+    const min = 1.2 / (inkW() || 1);       // skip points closer than ~1px
+    if (dx * dx + dy * dy < min * min) return;
+    live.push(nx, ny);
+    renderInk();
+  });
+
+  function endStroke(e) {
+    if (e.pointerId !== pointer) return;
+    pointer = null;
+    if (live) {
+      state.ink.push(live.map((v) => Math.round(v * 1e3) / 1e3));
+      live = null;
+    }
+    let total = state.ink.reduce((n, s) => n + s.length, 0);
+    while (total > MAX_POINTS && state.ink.length > 1) total -= state.ink.shift().length;
+    noteChrome(); renderInk(); save();
+  }
+  ink.addEventListener("pointerup", endStroke);
+  ink.addEventListener("pointercancel", endStroke);
+
+  const ICON_PEN = modeBtn.innerHTML;
+  const ICON_KEYBOARD =
+    '<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2.5"/>' +
+    '<path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M8 14h8"/></svg>';
+
+  function setDrawMode(on) {
+    drawMode = on;
+    if (!on) eraseMode = false;
+    document.body.classList.toggle("note-draw", on);
+    modeBtn.setAttribute("aria-pressed", String(on));
+    modeBtn.setAttribute("aria-label", on ? "Switch to typing" : "Switch to drawing");
+    modeBtn.title = on ? "Type" : "Draw";
+    modeBtn.innerHTML = on ? ICON_KEYBOARD : ICON_PEN;
+    if (on) noteEl.blur();
+    noteChrome();
+  }
+
+  modeBtn.addEventListener("click", () => setDrawMode(!drawMode));
+
+  eraseBtn.addEventListener("click", () => {
+    eraseMode = !eraseMode;
+    eraseBtn.setAttribute("aria-pressed", String(eraseMode));
+  });
+
+  undoBtn.addEventListener("click", () => {
+    if (!undos.length) return;
+    state.ink = JSON.parse(undos.pop());
+    noteChrome(); renderInk(); save();
+  });
+
+  /* -------------------------------------------------------- note state */
+
   function noteChrome() {
-    const empty = !noteEl.value.trim();
-    noteWrap.classList.toggle("empty", empty);
-    noteClear.hidden = empty;
+    const noText = !noteEl.value.trim(), noInk = !state.ink.length;
+    noteWrap.classList.toggle("empty", noText && noInk);
+    // the buttons act on whichever layer you are working in
+    noteClear.hidden = drawMode ? noInk : noText;
+    noteClear.setAttribute("aria-label", drawMode ? "Clear the drawing" : "Clear the text");
+    undoBtn.hidden = !drawMode;
+    undoBtn.disabled = !undos.length;
+    eraseBtn.hidden = !drawMode;
   }
 
   noteEl.value = state.note || "";
-  noteChrome();
 
   noteEl.addEventListener("input", () => {
     state.note = noteEl.value;
@@ -682,11 +912,54 @@
   });
 
   noteClear.addEventListener("click", () => {
-    noteEl.value = "";
-    state.note = "";
-    noteChrome(); fitNote(); save();
-    noteEl.blur();
+    if (drawMode) {
+      pushUndo();
+      state.ink = [];
+      renderInk();
+    } else {
+      noteEl.value = "";
+      state.note = "";
+      noteEl.blur();
+      fitNote();
+    }
+    noteChrome(); save();
   });
+
+  /* --------------------------------------------------------- fullscreen */
+
+  const fullBtn = $("#note-full");
+  const ICON_EXPAND = fullBtn.innerHTML;
+  const ICON_SHRINK =
+    '<svg viewBox="0 0 24 24"><path d="M20 4l-6 6"/><path d="M4 20l6-6"/>' +
+    '<path d="M14 4v6h6"/><path d="M10 20v-6H4"/></svg>';
+
+  function setFull(on) {
+    document.body.classList.toggle("note-full", on);
+    fullBtn.innerHTML = on ? ICON_SHRINK : ICON_EXPAND;
+    fullBtn.setAttribute("aria-label", on ? "Leave fullscreen" : "Show fullscreen");
+    fullBtn.title = on ? "Leave fullscreen" : "Fullscreen";
+    // Real fullscreen also hides the browser's own chrome; where it is not
+    // allowed (iOS Safari) the fixed-position panel above is already enough.
+    if (on && !document.fullscreenElement && noteWrap.requestFullscreen) {
+      noteWrap.requestFullscreen().catch(() => {});
+    } else if (!on && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+    requestAnimationFrame(layoutNote);
+  }
+
+  fullBtn.addEventListener("click", () => setFull(!document.body.classList.contains("note-full")));
+
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && document.body.classList.contains("note-full")) setFull(false);
+    else requestAnimationFrame(layoutNote);
+  });
+
+  function layoutNote() {
+    centreInk();
+    renderInk();
+    fitNote();
+  }
 
   /* ------------------------------------------------------------- sheet */
 
@@ -726,7 +999,8 @@
       name.value = cat.name || "";
       name.placeholder = "Name (optional)";
       name.maxLength = 24;
-      name.addEventListener("input", () => { cat.name = name.value; save(); renderLegend(); });
+      // the name is only read out by screen readers now, via each cell's label
+      name.addEventListener("input", () => { cat.name = name.value; save(); render(); });
 
       const del = document.createElement("button");
       del.className = "del";
@@ -770,8 +1044,11 @@
 
   /* ------------------------------------------------------------ controls */
 
-  const confirmNew = () => !state.marks.some(Boolean) ||
-    confirm("Start a new card? The marks on the current one will be lost.");
+  const confirmNew = () => {
+    const lose = [state.marks.some(Boolean) && "the marks", state.ink.length && "the drawing"]
+      .filter(Boolean);
+    return !lose.length || confirm(`Start a new card? You will lose ${lose.join(" and ")}.`);
+  };
 
   const doNew = () => { if (confirmNew()) { newCard(); closeSheet(); } };
   $("#btn-new").addEventListener("click", doNew);
@@ -786,7 +1063,11 @@
   $("#btn-settings").addEventListener("click", openSheet);
   $("#btn-close").addEventListener("click", closeSheet);
   scrim.addEventListener("click", closeSheet);
-  addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+  addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (sheet.classList.contains("show")) closeSheet();
+    else if (document.body.classList.contains("note-full")) setFull(false);
+  });
 
   for (const [id, key] of [["#opt-even", "even"], ["#opt-spread", "spread"], ["#opt-haptics", "haptics"]]) {
     const el = $(id);
@@ -821,13 +1102,19 @@
   function fit() {
     const side = Math.floor(Math.min(main.clientWidth, main.clientHeight));
     if (side > 0) cardEl.style.setProperty("--side", side + "px");
-    fitNote();
+    layoutNote();
   }
   new ResizeObserver(fit).observe(main);
-  new ResizeObserver(fitNote).observe(noteWrap);
+  new ResizeObserver(layoutNote).observe(noteWrap);
+
+  // the pen colour follows the theme, so redraw when the theme flips
+  matchMedia("(prefers-color-scheme: light)").addEventListener("change", renderInk);
+  new MutationObserver(renderInk)
+    .observe(document.documentElement, { attributeFilter: ["data-theme"] });
   addEventListener("orientationchange", () => setTimeout(fit, 120));
 
   if (!state.card) newCard(); else render();
+  setDrawMode(false);
   fit();
 })();
 </script>
