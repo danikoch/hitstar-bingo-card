@@ -1,6 +1,6 @@
 /* Hitstar Bingo – offline cache.
    Bump CACHE when you change any of the cached files. */
-const CACHE = "hitstar-bingo-v1";
+const CACHE = "hitstar-bingo-v2";
 const ASSETS = [
   "./",
   "./index.html",

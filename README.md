@@ -15,9 +15,12 @@ and it runs.
   is readable on that colour.
 - **Bingo detection** — rows, columns and both diagonals. The winning line lights up,
   "BINGO!" flashes over the card with confetti and a short vibration.
+- **Big text field under the card** — type anything (the round, the current song, a rule)
+  and it scales up to the largest size that still fits, so it can be read from across the
+  table. A clear button (×) wipes it in one tap.
 - **Legend** under the card counting how many fields of each colour you already got (e.g. `3/5`).
-- **Everything is saved on the device** — card, marks, colours and settings survive a
-  reload or an accidentally closed tab.
+- **Everything is saved on the device** — card, marks, colours, text and settings survive
+  a reload or an accidentally closed tab.
 - **Installable and offline capable** (PWA) — add to the home screen, works with no
   connection at the party.
 - Dark and light mode, follows the phone's setting. Fits any screen without scrolling.
@@ -29,6 +32,19 @@ and it runs.
 | Even distribution | Every colour gets the same share of the 25 fields (with 5 colours: exactly 5 each). Off = each field is drawn independently, so the counts wobble. |
 | Avoid neighbouring twins | Re-draws the card a few times and keeps the one where the fewest identical colours touch, so it looks properly mixed. |
 | Vibration | Short buzz when marking a field. Ignored on iOS, which does not support the vibration API. |
+
+## The text field
+
+The panel under the card is a plain text box that always shows its content as large as it
+will go: one word fills the panel, a long sentence wraps and shrinks. Useful for the round
+number, the song being guessed, or the house rule currently in force — anything the whole
+table needs to read at once.
+
+- Tap it to type. Enter makes a new line.
+- The × in the corner clears it. It only appears when there is something to clear.
+- The text is independent of the card: dealing a new card or clearing the marks leaves it
+  alone.
+- To clear the *card* instead, use *Clear all marks* in the settings sheet.
 
 ## Running it
 
@@ -65,7 +81,12 @@ There is nothing to compile.
 ## Notes for hacking on it
 
 - Changed something and the phone still shows the old version? Bump `CACHE` in `sw.js`
-  (`hitstar-bingo-v1` → `-v2`); the old cache is dropped on the next visit.
+  (`hitstar-bingo-v2` → `-v3`); the old cache is dropped on the next visit.
+- The text is fitted by binary-searching the font size against a hidden measuring element.
+  That element shares its typography with the textarea through one CSS rule
+  (`#note, #note-measure`) — do not copy font properties in JS instead, because a computed
+  `line-height` or `letter-spacing` is relative to the current font size and makes the
+  fitted size oscillate.
 - Saved state lives in `localStorage` under `hitstar-bingo-v1`. Clearing site data resets
   everything to the default palette.
 - Deleting a colour does not damage a card already in play — those fields keep the colour

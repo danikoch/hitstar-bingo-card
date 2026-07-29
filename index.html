@@ -139,6 +139,59 @@
   }
   @keyframes pop { 40% { transform: scale(1.09); } }
 
+  /* ---------- note (readable across the table) ---------- */
+  #note-wrap {
+    flex: 0 0 auto;
+    position: relative;
+    height: clamp(74px, 21dvh, 210px);
+    margin-top: 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  #note-wrap:focus-within { border-color: var(--accent); }
+  #note-wrap.empty { border-style: dashed; }
+  /* The measuring element must match the textarea in everything but font-size,
+     so both take their typography from here. Nothing is copied in JS: a computed
+     line-height or letter-spacing is relative to the *current* font size and
+     would make the fitted size chase its own tail. */
+  #note, #note-measure {
+    font-family: inherit;
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -.01em;
+    text-align: center;
+  }
+  #note {
+    width: 100%; height: 100%;
+    padding: 10px 14px;           /* padding-top is adjusted in JS to centre the text */
+    background: none; border: none; outline: none; resize: none;
+    color: var(--fg);
+    font-size: 20px;              /* replaced by the fitted size */
+    overflow-y: auto;
+    display: block;
+  }
+  /* Keep the text clear of the clear button, symmetrically so it stays centred.
+     fitNote() reads these paddings, so this rule alone decides the text width. */
+  #note-wrap:not(.empty) #note { padding-left: 44px; padding-right: 44px; }
+  #note::placeholder { font-weight: 600; font-size: 15px; color: var(--fg-dim); letter-spacing: 0; }
+  #note-clear {
+    position: absolute; top: 6px; right: 6px;
+    width: 32px; height: 32px; border-radius: 9px;
+    display: grid; place-items: center;
+    background: var(--bg-elev-2); color: var(--fg-dim);
+    border: 1px solid var(--line);
+    font-size: 19px; line-height: 1; cursor: pointer;
+    touch-action: manipulation;
+  }
+  #note-clear:active { transform: scale(.9); }
+  #note-clear[hidden] { display: none; }   /* beats the display:grid above */
+  #note-measure {
+    position: absolute; left: -9999px; top: 0;
+    visibility: hidden; pointer-events: none;
+    white-space: pre-wrap; overflow-wrap: break-word;
+  }
+
   /* ---------- legend ---------- */
   #legend {
     flex: 0 0 auto;
@@ -290,6 +343,15 @@
 </header>
 
 <main><div id="card" role="grid" aria-label="Bingo card"></div></main>
+
+<div id="note-wrap" class="empty">
+  <textarea id="note" placeholder="Tap to write — the text scales to fill the field"
+            aria-label="Note, shown large enough to read across the table"
+            autocomplete="off" autocapitalize="sentences" spellcheck="false"></textarea>
+  <button id="note-clear" aria-label="Clear the text" title="Clear the text" hidden>×</button>
+  <div id="note-measure" aria-hidden="true"></div>
+</div>
+
 <div id="legend"></div>
 
 <div id="banner" aria-live="polite"><strong>BINGO!</strong></div>
@@ -357,6 +419,7 @@
     card: null,        // [{ catId, color }] – colour is the fallback if the category is deleted
     marks: [],
     seen: [],          // indexes of bingo lines already celebrated
+    note: "",
   };
 
   function load() {
@@ -369,6 +432,7 @@
       if (!Array.isArray(s.card) || s.card.length !== CELLS) s.card = null;
       s.settings = Object.assign({ even: true, spread: true, haptics: true }, s.settings);
       s.seen = Array.isArray(s.seen) ? s.seen : [];
+      s.note = typeof s.note === "string" ? s.note : "";
       return s;
     } catch { return null; }
   }
@@ -557,6 +621,73 @@
     }
   }
 
+  /* ---------------------------------------------------------------- note */
+
+  const noteWrap = $("#note-wrap"), noteEl = $("#note"),
+        noteClear = $("#note-clear"), measure = $("#note-measure");
+  const MIN_PT = 13, MAX_PT = 260;
+
+  // Grow the text to the largest size that still fits the panel, then centre it.
+  function fitNote() {
+    const text = noteEl.value;
+    if (!text.trim()) {
+      noteEl.style.fontSize = "";
+      noteEl.style.paddingTop = "";
+      return;
+    }
+
+    // The paddings come from CSS; padding-bottom doubles as the vertical base
+    // because padding-top is what this function writes.
+    const cs = getComputedStyle(noteEl);
+    const padY = parseFloat(cs.paddingBottom);
+    const boxW = noteWrap.clientWidth - 2 - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const boxH = noteWrap.clientHeight - 2 - 2 * padY;   // 2 = the 1px border either side
+    if (boxW <= 0 || boxH <= 0) return;
+
+    measure.style.width = boxW + "px";
+    // a trailing newline has no height of its own unless something follows it
+    measure.textContent = text.endsWith("\n") ? text + " " : text;
+
+    let lo = MIN_PT, hi = Math.min(MAX_PT, boxH + 4), best = MIN_PT;
+    for (let i = 0; i < 10; i++) {
+      const mid = (lo + hi) / 2;
+      measure.style.fontSize = mid + "px";
+      const fits = measure.scrollWidth <= boxW + 0.5 && measure.scrollHeight <= boxH + 0.5;
+      if (fits) { best = mid; lo = mid; } else { hi = mid; }
+    }
+
+    noteEl.style.fontSize = best.toFixed(1) + "px";
+
+    // Centre on the height of the line boxes (getBoundingClientRect), not on
+    // scrollHeight: with a line-height this tight the glyphs overflow their line
+    // box, which is the right thing to be cautious about when fitting, but it
+    // would push the text off centre by a couple of pixels here.
+    measure.style.fontSize = best + "px";
+    const linesH = measure.getBoundingClientRect().height;
+    noteEl.style.paddingTop = (padY + Math.max(0, (boxH - linesH) / 2)) + "px";
+  }
+
+  function noteChrome() {
+    const empty = !noteEl.value.trim();
+    noteWrap.classList.toggle("empty", empty);
+    noteClear.hidden = empty;
+  }
+
+  noteEl.value = state.note || "";
+  noteChrome();
+
+  noteEl.addEventListener("input", () => {
+    state.note = noteEl.value;
+    noteChrome(); fitNote(); save();
+  });
+
+  noteClear.addEventListener("click", () => {
+    noteEl.value = "";
+    state.note = "";
+    noteChrome(); fitNote(); save();
+    noteEl.blur();
+  });
+
   /* ------------------------------------------------------------- sheet */
 
   const sheet = $("#sheet"), scrim = $("#scrim"), paletteEl = $("#palette");
@@ -690,8 +821,10 @@
   function fit() {
     const side = Math.floor(Math.min(main.clientWidth, main.clientHeight));
     if (side > 0) cardEl.style.setProperty("--side", side + "px");
+    fitNote();
   }
   new ResizeObserver(fit).observe(main);
+  new ResizeObserver(fitNote).observe(noteWrap);
   addEventListener("orientationchange", () => setTimeout(fit, 120));
 
   if (!state.card) newCard(); else render();
