@@ -21,13 +21,16 @@
     --fg-dim: #a0a0b0;
     --line: #33333f;
     --accent: #ffd166;
+    --marked: .42;
     --radius: 14px;
     --gap: 2.2vmin;
     --safe-t: env(safe-area-inset-top, 0px);
     --safe-b: env(safe-area-inset-bottom, 0px);
   }
+  /* Light palette: follows the system unless a theme is forced via
+     <html data-theme="light|dark">. Same values in both rules on purpose. */
   @media (prefers-color-scheme: light) {
-    :root {
+    :root:not([data-theme="dark"]) {
       --bg: #f2f2f6;
       --bg-elev: #ffffff;
       --bg-elev-2: #e8e8ef;
@@ -35,7 +38,18 @@
       --fg-dim: #63636f;
       --line: #d5d5de;
       --accent: #d98e00;   /* readable amber on a light background */
+      --marked: .5;
     }
+  }
+  :root[data-theme="light"] {
+    --bg: #f2f2f6;
+    --bg-elev: #ffffff;
+    --bg-elev-2: #e8e8ef;
+    --fg: #16161c;
+    --fg-dim: #63636f;
+    --line: #d5d5de;
+    --accent: #d98e00;
+    --marked: .5;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -113,9 +127,8 @@
     opacity: 0; transform: scale(.4) rotate(-25deg);
     transition: opacity .18s, transform .22s cubic-bezier(.34,1.56,.64,1);
   }
-  .cell.marked { opacity: .42; box-shadow: inset 0 0 0 2px rgba(0,0,0,.25); }
+  .cell.marked { opacity: var(--marked); box-shadow: inset 0 0 0 2px rgba(0,0,0,.25); }
   .cell.marked::after { opacity: 1; transform: none; }
-  @media (prefers-color-scheme: light) { .cell.marked { opacity: .5; } }
 
   .cell.in-bingo { opacity: 1; animation: pop .45s ease; }
   .cell.in-bingo::before {
