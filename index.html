@@ -60,16 +60,21 @@
     background: var(--bg);
     color: var(--fg);
     font: 500 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    display: flex; flex-direction: column;
+    display: grid;
+    grid-template-areas: "head" "card" "note";
+    grid-template-rows: auto 1fr auto;
+    gap: 12px;
     padding: calc(var(--safe-t) + 10px) 12px calc(var(--safe-b) + 10px);
     height: 100dvh;
     user-select: none; -webkit-user-select: none;
   }
+  header { grid-area: head; }
+  main { grid-area: card; }
+  #note-wrap { grid-area: note; }
 
   /* ---------- header ---------- */
   header {
     display: flex; align-items: center; gap: 10px;
-    flex: 0 0 auto; padding-bottom: 10px;
   }
   h1 {
     font-size: clamp(15px, 4.4vw, 21px);
@@ -92,7 +97,7 @@
 
   /* ---------- card ---------- */
   main {
-    flex: 1 1 auto; min-height: 0;
+    min-height: 0; min-width: 0;
     display: flex; align-items: center; justify-content: center;
   }
   #card {
@@ -141,15 +146,17 @@
 
   /* ---------- note (readable across the table) ---------- */
   #note-wrap {
-    flex: 0 0 auto;
     position: relative;
     height: clamp(74px, 21dvh, 210px);
-    margin-top: 12px;
+    min-width: 0;
     background: var(--bg-elev);
     border: 1px solid var(--line);
     border-radius: var(--radius);
   }
-  #note-wrap:focus-within { border-color: var(--accent); }
+  /* :has(), not :focus-within — the toolbar buttons live inside the panel, so
+     focus-within lit the border up after tapping any of them, which reads as
+     "you are typing here" when you are not. */
+  #note-wrap:has(#note:focus) { border-color: var(--accent); }
   #note-wrap.empty { border-style: dashed; }
   /* The measuring element must match the textarea in everything but font-size,
      so both take their typography from here. Nothing is copied in JS: a computed
@@ -270,6 +277,30 @@
     *, *::before, *::after { animation-duration: .01ms !important; }
   }
 
+  /* ---------- confirmation dialog ---------- */
+  #ask {
+    position: fixed; z-index: 70;
+    left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(340px, calc(100vw - 40px));
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 20px 18px 16px;
+    box-shadow: 0 18px 50px -12px rgba(0, 0, 0, .55);
+  }
+  #ask[hidden] { display: none; }
+  #ask p { margin: 0 0 16px; font-size: 15.5px; line-height: 1.45; }
+  .ask-actions { display: flex; gap: 8px; }
+  .ask-actions button {
+    flex: 1; padding: 12px; border-radius: 11px;
+    background: var(--bg-elev-2); color: var(--fg);
+    border: 1px solid var(--line);
+    font: 600 15px system-ui, sans-serif; cursor: pointer;
+    touch-action: manipulation;
+  }
+  .ask-actions button.primary { background: var(--accent); color: #16161c; border-color: transparent; }
+  .ask-actions button:active { transform: scale(.98); }
+
   /* ---------- settings sheet ---------- */
   #scrim {
     position: fixed; inset: 0; background: rgba(0,0,0,.55);
@@ -353,6 +384,35 @@
   }
   .preset i { width: 17px; display: block; }
   .hint { color: var(--fg-dim); font-size: 12.5px; margin: 10px 0 0; line-height: 1.5; }
+
+  /* ---------- landscape: field beside the card ----------
+     Kept last in the sheet: these have the same specificity as the rules
+     they override (#note-wrap's height, #card's width), so source order is
+     what decides.
+
+     Landscape: the field moves beside the card instead of under it. Stacked,
+     the two compete for the same height and both end up cramped; side by side
+     the card takes the full height and the field takes the width left over.
+     Gated on a width as well, so a narrow or nearly square window keeps the
+     stacked layout, where a 50/50 split would look wrong. */
+  @media (orientation: landscape) and (min-width: 620px) {
+    body {
+      grid-template-areas: "head head" "card note";
+      /* fit() replaces the first track with the card's exact width. An `auto`
+         track cannot work here: its width would come from the card, whose
+         width comes from its height, which comes from this row — a cycle the
+         browser resolves differently before and after layout, so the grid
+         never settles. */
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: auto 1fr;
+    }
+    /* 100%, not auto: an auto-height grid item grows to fit its own content,
+       and this one's content is text sized to fit the box — the box would grow
+       from the text, the row from the box, the card from the row, and the text
+       would refit into the bigger box, over and over. min-height:0 keeps the
+       track's automatic minimum out of it too. */
+    #note-wrap { height: 100%; min-height: 0; }
+  }
 </style>
 </head>
 <body>
@@ -398,6 +458,13 @@
 <div id="banner" aria-live="polite"><strong>BINGO!</strong></div>
 
 <div id="scrim"></div>
+<div id="ask" role="dialog" aria-modal="true" aria-labelledby="ask-text" hidden>
+  <p id="ask-text"></p>
+  <div class="ask-actions">
+    <button id="ask-no">Cancel</button>
+    <button id="ask-yes" class="primary">New card</button>
+  </div>
+</div>
 <section id="sheet" role="dialog" aria-label="Colours and settings" aria-modal="true">
   <div class="grabber"></div>
 
@@ -1044,13 +1111,45 @@
 
   /* ------------------------------------------------------------ controls */
 
-  const confirmNew = () => {
-    const lose = [state.marks.some(Boolean) && "the marks", state.ink.length && "the drawing"]
-      .filter(Boolean);
-    return !lose.length || confirm(`Start a new card? You will lose ${lose.join(" and ")}.`);
-  };
+  /* An in-app dialog, not confirm(). A sandboxed iframe — which is how the
+     hosted build runs — ignores modal dialogs outright: nothing is shown to the
+     user and confirm() simply returns false, so the new-card button did nothing
+     as soon as there was anything to lose. */
+  const askEl = $("#ask"), askText = $("#ask-text"),
+        askYes = $("#ask-yes"), askNo = $("#ask-no");
+  let settle = null;
 
-  const doNew = () => { if (confirmNew()) { newCard(); closeSheet(); } };
+  function ask(text, yesLabel) {
+    askText.textContent = text;
+    askYes.textContent = yesLabel;
+    askEl.hidden = false;
+    scrim.classList.add("show");
+    askYes.focus();
+    return new Promise((resolve) => { settle = resolve; });
+  }
+
+  // returns false when no dialog was open, so callers can fall through
+  function closeAsk(answer) {
+    if (!settle) return false;
+    const resolve = settle;
+    settle = null;
+    askEl.hidden = true;
+    if (!sheet.classList.contains("show")) scrim.classList.remove("show");
+    resolve(answer);
+    return true;
+  }
+
+  askYes.addEventListener("click", () => closeAsk(true));
+  askNo.addEventListener("click", () => closeAsk(false));
+
+  async function doNew() {
+    const lose = [state.marks.some(Boolean) && "the marks",
+                  state.ink.length && "the drawing"].filter(Boolean);
+    if (lose.length &&
+        !(await ask(`Start a new card? You will lose ${lose.join(" and ")}.`, "New card"))) return;
+    newCard();
+    closeSheet();
+  }
   $("#btn-new").addEventListener("click", doNew);
   $("#btn-new-2").addEventListener("click", doNew);
 
@@ -1062,9 +1161,10 @@
 
   $("#btn-settings").addEventListener("click", openSheet);
   $("#btn-close").addEventListener("click", closeSheet);
-  scrim.addEventListener("click", closeSheet);
+  scrim.addEventListener("click", () => { if (!closeAsk(false)) closeSheet(); });
   addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    if (closeAsk(false)) return;
     if (sheet.classList.contains("show")) closeSheet();
     else if (document.body.classList.contains("note-full")) setFull(false);
   });
@@ -1099,11 +1199,27 @@
   /* ------------------------------------------------- keep the card square */
 
   const main = document.querySelector("main");
+  // must match the media query in the stylesheet
+  const WIDE = matchMedia("(orientation: landscape) and (min-width: 620px)");
+  const MIN_FIELD = 220;      // never squeeze the field below this in landscape
+
   function fit() {
-    const side = Math.floor(Math.min(main.clientWidth, main.clientHeight));
+    let side;
+    if (WIDE.matches) {
+      /* Side by side, the card is as big as the row is tall — but capped so the
+         field keeps a usable width on an almost-square window. Deliberately not
+         derived from main's width, which is the column this then sets. */
+      const inner = document.body.clientWidth - 24;          // body's side padding
+      side = Math.floor(Math.min(main.clientHeight, inner - 12 - MIN_FIELD));
+      if (side > 0) document.body.style.gridTemplateColumns = side + "px minmax(0, 1fr)";
+    } else {
+      side = Math.floor(Math.min(main.clientWidth, main.clientHeight));
+      document.body.style.gridTemplateColumns = "";
+    }
     if (side > 0) cardEl.style.setProperty("--side", side + "px");
     layoutNote();
   }
+  WIDE.addEventListener("change", fit);
   new ResizeObserver(fit).observe(main);
   new ResizeObserver(layoutNote).observe(noteWrap);
 
