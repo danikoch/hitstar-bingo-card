@@ -58,7 +58,7 @@ Notes on behaviour:
 
 - Text is independent of the card, so clearing the marks leaves it alone. Dealing a **new
   card** does clear the drawing, since it belongs to the round that just ended — the
-  confirmation prompt says so.
+  confirmation names exactly what you are about to lose.
 - To clear the card's marks, use *Clear all marks* in the settings sheet.
 - The pen follows the text colour, so it flips with light and dark mode.
 - In fullscreen, **text** grows to fill whatever space there is. A **drawing** scales with
@@ -116,7 +116,7 @@ There is nothing to compile.
 ## Notes for hacking on it
 
 - Changed something and the phone still shows the old version? Bump `CACHE` in `sw.js`
-  (`hitstar-bingo-v5` → `-v6`); the old cache is dropped on the next visit.
+  (`hitstar-bingo-v6` → `-v7`); the old cache is dropped on the next visit.
 - The text is fitted by binary-searching the font size against a hidden measuring element.
   Three traps live here, all commented in the source:
   1. That element shares its typography with the textarea through one CSS rule
@@ -141,6 +141,10 @@ There is nothing to compile.
   2. An `auto`-height field grows to fit its text, but its text is sized to fit the field:
      the box grew from the text, the row from the box, the card from the row, and the text
      refitted into the bigger box. `height: 100%` plus `min-height: 0` breaks it.
+- Confirmations use the in-app dialog (`ask()`), never `confirm()`. A sandboxed iframe — how
+  the app runs when embedded — ignores modal dialogs entirely: nothing is shown and
+  `confirm()` returns `false`, so the new-card button silently did nothing whenever there was
+  something to lose. Same applies to `alert()` and `prompt()`.
 - Saved state lives in `localStorage` under `hitstar-bingo-v1`. Clearing site data resets
   everything to the default palette.
 - Deleting a colour does not damage a card already in play — those fields keep the colour

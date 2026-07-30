@@ -277,6 +277,30 @@
     *, *::before, *::after { animation-duration: .01ms !important; }
   }
 
+  /* ---------- confirmation dialog ---------- */
+  #ask {
+    position: fixed; z-index: 70;
+    left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(340px, calc(100vw - 40px));
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 20px 18px 16px;
+    box-shadow: 0 18px 50px -12px rgba(0, 0, 0, .55);
+  }
+  #ask[hidden] { display: none; }
+  #ask p { margin: 0 0 16px; font-size: 15.5px; line-height: 1.45; }
+  .ask-actions { display: flex; gap: 8px; }
+  .ask-actions button {
+    flex: 1; padding: 12px; border-radius: 11px;
+    background: var(--bg-elev-2); color: var(--fg);
+    border: 1px solid var(--line);
+    font: 600 15px system-ui, sans-serif; cursor: pointer;
+    touch-action: manipulation;
+  }
+  .ask-actions button.primary { background: var(--accent); color: #16161c; border-color: transparent; }
+  .ask-actions button:active { transform: scale(.98); }
+
   /* ---------- settings sheet ---------- */
   #scrim {
     position: fixed; inset: 0; background: rgba(0,0,0,.55);
@@ -434,6 +458,13 @@
 <div id="banner" aria-live="polite"><strong>BINGO!</strong></div>
 
 <div id="scrim"></div>
+<div id="ask" role="dialog" aria-modal="true" aria-labelledby="ask-text" hidden>
+  <p id="ask-text"></p>
+  <div class="ask-actions">
+    <button id="ask-no">Cancel</button>
+    <button id="ask-yes" class="primary">New card</button>
+  </div>
+</div>
 <section id="sheet" role="dialog" aria-label="Colours and settings" aria-modal="true">
   <div class="grabber"></div>
 
@@ -1080,13 +1111,45 @@
 
   /* ------------------------------------------------------------ controls */
 
-  const confirmNew = () => {
-    const lose = [state.marks.some(Boolean) && "the marks", state.ink.length && "the drawing"]
-      .filter(Boolean);
-    return !lose.length || confirm(`Start a new card? You will lose ${lose.join(" and ")}.`);
-  };
+  /* An in-app dialog, not confirm(). A sandboxed iframe — which is how the
+     hosted build runs — ignores modal dialogs outright: nothing is shown to the
+     user and confirm() simply returns false, so the new-card button did nothing
+     as soon as there was anything to lose. */
+  const askEl = $("#ask"), askText = $("#ask-text"),
+        askYes = $("#ask-yes"), askNo = $("#ask-no");
+  let settle = null;
 
-  const doNew = () => { if (confirmNew()) { newCard(); closeSheet(); } };
+  function ask(text, yesLabel) {
+    askText.textContent = text;
+    askYes.textContent = yesLabel;
+    askEl.hidden = false;
+    scrim.classList.add("show");
+    askYes.focus();
+    return new Promise((resolve) => { settle = resolve; });
+  }
+
+  // returns false when no dialog was open, so callers can fall through
+  function closeAsk(answer) {
+    if (!settle) return false;
+    const resolve = settle;
+    settle = null;
+    askEl.hidden = true;
+    if (!sheet.classList.contains("show")) scrim.classList.remove("show");
+    resolve(answer);
+    return true;
+  }
+
+  askYes.addEventListener("click", () => closeAsk(true));
+  askNo.addEventListener("click", () => closeAsk(false));
+
+  async function doNew() {
+    const lose = [state.marks.some(Boolean) && "the marks",
+                  state.ink.length && "the drawing"].filter(Boolean);
+    if (lose.length &&
+        !(await ask(`Start a new card? You will lose ${lose.join(" and ")}.`, "New card"))) return;
+    newCard();
+    closeSheet();
+  }
   $("#btn-new").addEventListener("click", doNew);
   $("#btn-new-2").addEventListener("click", doNew);
 
@@ -1098,9 +1161,10 @@
 
   $("#btn-settings").addEventListener("click", openSheet);
   $("#btn-close").addEventListener("click", closeSheet);
-  scrim.addEventListener("click", closeSheet);
+  scrim.addEventListener("click", () => { if (!closeAsk(false)) closeSheet(); });
   addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    if (closeAsk(false)) return;
     if (sheet.classList.contains("show")) closeSheet();
     else if (document.body.classList.contains("note-full")) setFull(false);
   });
