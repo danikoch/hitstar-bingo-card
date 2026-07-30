@@ -978,6 +978,20 @@
     noteChrome(); fitNote(); save();
   });
 
+  /* Trim the ends once you are done — blank space or line breaks there only push
+     the text off centre and shrink it. Whatever you put *between* words, line
+     breaks included, is left exactly as typed.
+
+     On blur rather than on input: stripping a trailing space on every keystroke
+     would eat the space you just pressed between two words. */
+  noteEl.addEventListener("blur", () => {
+    const tidy = noteEl.value.trim();
+    if (tidy === noteEl.value) return;
+    noteEl.value = tidy;
+    state.note = tidy;
+    noteChrome(); fitNote(); save();
+  });
+
   noteClear.addEventListener("click", () => {
     if (drawMode) {
       pushUndo();
