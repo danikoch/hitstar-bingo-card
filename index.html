@@ -624,9 +624,12 @@
     { name: "Six",      colors: ["#ef476f", "#ffd166", "#06d6a0", "#118ab2", "#8e7dbe", "#f78c6b"] },
   ];
 
+  // red, orange, yellow, green, blue — matching PRESETS[0].colors
+  const DEFAULT_CATEGORIES = ["Jahrzehnt", "3 Jahre", "Song", "Exaktes Jahr", "Interpret"];
+
   const uid = () => Math.random().toString(36).slice(2, 9);
   const defaultPalette = () =>
-    PRESETS[0].colors.map((c, i) => ({ id: uid(), color: c, name: "Colour " + (i + 1) }));
+    PRESETS[0].colors.map((c, i) => ({ id: uid(), color: c, name: DEFAULT_CATEGORIES[i] || "" }));
 
   /* ------------------------------------------------------------------ state */
 
@@ -664,6 +667,22 @@
       try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* private mode */ }
     }, 120);
   }
+
+  /* Anyone who never renamed a colour is still carrying the old "Colour N"
+     placeholders and would never see the default categories. Only a palette
+     that is genuinely untouched gets them — same colours, every name still a
+     placeholder — and the result is written back so it settles. Runs out here
+     rather than inside load(), which cannot save: neither `state` nor save()'s
+     own timer exists that early. */
+  (function adoptDefaultCategories() {
+    const stale = state.palette.length === DEFAULT_CATEGORIES.length &&
+      state.palette.every((c, i) =>
+        c.color === PRESETS[0].colors[i] && /^Colour \d+$/.test(c.name || ""));
+    if (!stale) return;
+    state.palette.forEach((c, i) => { c.name = DEFAULT_CATEGORIES[i]; });
+    save();
+  })();
+
 
   /* ------------------------------------------------------- card generation */
 
@@ -1203,7 +1222,7 @@
     if (state.palette.length >= 12) return;
     const used = new Set(state.palette.map((c) => c.color.toLowerCase()));
     const spare = SPARES.find((c) => !used.has(c)) || SPARES[0];
-    state.palette.push({ id: uid(), color: spare, name: "Colour " + (state.palette.length + 1) });
+    state.palette.push({ id: uid(), color: spare, name: "" });
     save(); renderPalette(); render();
   });
 
@@ -1218,7 +1237,9 @@
       b.appendChild(i);
     });
     b.addEventListener("click", () => {
-      state.palette = preset.colors.map((c, i) => ({ id: uid(), color: c, name: "Colour " + (i + 1) }));
+      // a preset changes the colours; the categories are yours, so they stay
+      const keep = state.palette.map((c) => c.name || "");
+      state.palette = preset.colors.map((c, i) => ({ id: uid(), color: c, name: keep[i] || "" }));
       save(); renderPalette(); newCard();
     });
     return b;

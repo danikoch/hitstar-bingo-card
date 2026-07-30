@@ -77,6 +77,20 @@ game on a phone that is not playing a card. One wedge per colour, each labelled 
 colour's **category**, which you type in the settings sheet. There is no second list to keep
 in sync: the palette *is* the category list, and edits show up on the wheel straight away.
 
+The defaults, matching the starting palette:
+
+| Colour | Category |
+| --- | --- |
+| Red | Jahrzehnt |
+| Orange | 3 Jahre |
+| Yellow | Song |
+| Green | Exaktes Jahr |
+| Blue | Interpret |
+
+Switching colour **preset** swaps the colours and keeps your categories — a preset is a
+colour scheme, not a set of categories. A colour you add starts with no category, for you to
+fill in.
+
 Tap the wheel to spin. When it stops, the winning colour fills a band with its category on
 top, big enough to read out to the table — the colour tells players which fields to look for,
 the category tells them what to do. Tap again to re-spin; Escape or the × closes the wheel.
@@ -175,6 +189,11 @@ There is nothing to compile.
   something to lose. Same applies to `alert()` and `prompt()`.
 - Saved state lives in `localStorage` under `hitstar-bingo-v1`. Clearing site data resets
   everything to the default palette.
+- `adoptDefaultCategories()` gives the default categories to installs saved before they
+  existed, but only when the palette is provably untouched — same colours, every name still a
+  `Colour N` placeholder. Rename or recolour anything and it leaves you alone. It sits below
+  `save()` because it writes its result back, and `save()`'s timer variable is not
+  initialised any earlier.
 - Deleting a colour does not damage a card already in play — those fields keep the colour
   they were dealt. Editing a colour recolours the running card immediately.
 - The starting palette and the presets are the `PRESETS` array at the top of the script.
