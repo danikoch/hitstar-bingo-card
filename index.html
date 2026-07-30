@@ -320,18 +320,33 @@
     margin: 0; align-self: center; text-align: center;
     color: var(--fg-dim); font-size: 14px;
   }
+  /* Content-sized, not a fixed slice of the screen: the band only needs to hold
+     one line of text, and every pixel it does not use is the wheel's. */
   #wheel-band {
     display: grid; place-items: center;
-    height: clamp(96px, 20dvh, 190px);
+    min-height: clamp(64px, 10dvh, 104px);
     border-radius: var(--radius);
-    padding: 8px 16px;
+    padding: 10px 16px;
     overflow: hidden;
   }
   #wheel-band[hidden] { display: none; }
-  #wheel-cat {
+  /* Same rule for both, so the measuring element cannot drift from the real one
+     — and nothing is copied in JS, where a computed line-height would be
+     relative to the size being measured. */
+  #wheel-cat, #band-measure {
     font-weight: 800; letter-spacing: -.01em; line-height: 1.05;
     text-align: center;
+    /* words stay whole: break-word would let the measurement "fit" by splitting
+       a word mid-syllable, which the real element then would not do */
+    white-space: normal; overflow-wrap: normal;
+  }
+  #wheel-cat {
+    display: block; width: 100%;    /* same width the fit was measured against */
     font-size: 28px;                /* replaced by the fitted size */
+  }
+  #band-measure {
+    position: absolute; left: -9999px; top: 0;
+    visibility: hidden; pointer-events: none;
   }
   #wheel-view.has-result #wheel-box { opacity: .6; }
   #wheel-view.has-result #wheel-hint { display: none; }
@@ -542,7 +557,10 @@
     </div>
   </div>
   <p id="wheel-hint">Tap the wheel to spin</p>
-  <div id="wheel-band" aria-live="polite" hidden><span id="wheel-cat"></span></div>
+  <div id="wheel-band" aria-live="polite" hidden>
+    <span id="wheel-cat"></span>
+    <div id="band-measure" aria-hidden="true"></div>
+  </div>
 </section>
 
 <div id="scrim"></div>
@@ -1381,7 +1399,7 @@
       pal.map((c, i) => (c.name || "").trim() || `colour ${i + 1}`).join(", "));
   }
 
-  const MIN_BAND = 200;      // the result band never gets narrower than this
+  const MIN_BAND = 150;      // the result band never gets narrower than this
 
   function fitWheel() {
     if (wheelView.hidden) return;
@@ -1402,18 +1420,35 @@
   }
   new ResizeObserver(fitWheel).observe(wheelStage);
 
-  // the band's text is one line; the wheel's own context measures it, so the
-  // font is the same one it will be rendered with
+  /* The category is fitted to the band the way the note field is fitted to its
+     panel — wrapping included, so a long name in the tall narrow landscape band
+     stacks onto two or three big lines instead of shrinking to fit one. */
+  const bandMeasure = $("#band-measure");
+
   function fitBand() {
     const text = wheelCat.textContent;
     if (!text) return;
-    const w = wheelBand.clientWidth - 34, h = wheelBand.clientHeight - 18;
-    if (w <= 0 || h <= 0) return;
-    let size = Math.min(h * .78, 190);
-    const font = () => { wctx.font = `800 ${size}px ${bodyFont()}`; };
-    font();
-    while (size > 12 && wctx.measureText(text).width > w) { size *= .93; font(); }
-    wheelCat.style.fontSize = size.toFixed(1) + "px";
+    const cs = getComputedStyle(wheelBand);
+    const boxW = wheelBand.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    /* Landscape's band is a full-height column, so measure it. Portrait's grows
+       to fit its text, so its height has to come from the viewport instead —
+       measuring the box there would be circular. */
+    const boxH = WIDE.matches
+      ? wheelBand.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+      : Math.max(46, Math.min(innerHeight * .13, 132));
+    if (boxW <= 0 || boxH <= 0) return;
+
+    bandMeasure.style.width = boxW + "px";
+    bandMeasure.textContent = text;
+    let lo = 12, hi = Math.min(230, boxH * 1.5), best = lo;
+    for (let i = 0; i < 10; i++) {
+      const mid = (lo + hi) / 2;
+      bandMeasure.style.fontSize = mid + "px";
+      if (bandMeasure.scrollWidth <= boxW + .5 && bandMeasure.scrollHeight <= boxH + .5) {
+        best = mid; lo = mid;
+      } else hi = mid;
+    }
+    wheelCat.style.fontSize = best.toFixed(1) + "px";
   }
 
   function clearResult() {

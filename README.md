@@ -77,10 +77,16 @@ game on a phone that is not playing a card. One wedge per colour, each labelled 
 colour's **category**, which you type in the settings sheet. There is no second list to keep
 in sync: the palette *is* the category list, and edits show up on the wheel straight away.
 
-Tap the wheel to spin. When it stops, the winning colour fills a band across the screen with
-its category on top, big enough to read out to the table — the colour tells players which
-fields to look for, the category tells them what to do. Tap again to re-spin; Escape or the ×
-closes the wheel. Nothing here touches the card: no marks change, and no new card is dealt.
+Tap the wheel to spin. When it stops, the winning colour fills a band with its category on
+top, big enough to read out to the table — the colour tells players which fields to look for,
+the category tells them what to do. Tap again to re-spin; Escape or the × closes the wheel.
+Nothing here touches the card: no marks change, and no new card is dealt.
+
+The wheel gets first claim on the space. The band is sized to its text rather than to a slice
+of the screen, and in landscape it takes only the width the wheel cannot use anyway — the
+wheel is as large as the screen's *height* allows, with an empty gutter mirroring the band so
+it stays centred. A long category wraps onto two or three big lines instead of shrinking to
+fit one.
 
 With reduced motion enabled the wheel jumps straight to its result instead of spinning.
 
