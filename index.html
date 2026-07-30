@@ -598,6 +598,14 @@
     <input type="checkbox" id="opt-haptics">
   </label>
 
+  <h2>Field</h2>
+  <label class="toggle">
+    <span>Landscape opens the field
+      <small>Turn the phone sideways and the text field goes fullscreen; turn it back and it
+        returns. Applies the next time you turn the phone. The wheel is unaffected.</small></span>
+    <input type="checkbox" id="opt-autofull">
+  </label>
+
   <button class="wide primary" id="btn-new-2">New card</button>
   <button class="wide" id="btn-clear">Clear all marks</button>
   <button class="wide" id="btn-install" hidden>Install on home screen</button>
@@ -636,7 +644,7 @@
   let state = load() || {
     v: 1,
     palette: defaultPalette(),
-    settings: { even: true, spread: true, haptics: true },
+    settings: { even: true, spread: true, haptics: true, autoFull: false },
     card: null,        // [{ catId, color }] – colour is the fallback if the category is deleted
     marks: [],
     seen: [],          // indexes of bingo lines already celebrated
@@ -652,7 +660,7 @@
       if (!s || s.v !== 1 || !Array.isArray(s.palette) || !s.palette.length) return null;
       if (!Array.isArray(s.marks) || s.marks.length !== CELLS) s.marks = new Array(CELLS).fill(false);
       if (!Array.isArray(s.card) || s.card.length !== CELLS) s.card = null;
-      s.settings = Object.assign({ even: true, spread: true, haptics: true }, s.settings);
+      s.settings = Object.assign({ even: true, spread: true, haptics: true, autoFull: false }, s.settings);
       s.seen = Array.isArray(s.seen) ? s.seen : [];
       s.note = typeof s.note === "string" ? s.note : "";
       s.ink = Array.isArray(s.ink) ? s.ink.filter((k) => Array.isArray(k) && k.length >= 2) : [];
@@ -1146,6 +1154,17 @@
 
   fullBtn.addEventListener("click", () => setFull(!document.body.classList.contains("note-full")));
 
+  /* Opt-in: turning the phone sideways puts the field fullscreen, turning it
+     back takes it out again. Only ever the card's field — the wheel owns the
+     screen while it is open, and an open settings sheet is not worth covering.
+     An orientation change is not a user gesture, so the browser will refuse
+     real fullscreen here; setFull()'s fixed layer covers the screen anyway. */
+  WIDE.addEventListener("change", (e) => {
+    if (!state.settings.autoFull) return;
+    if (!wheelView.hidden || sheet.classList.contains("show")) return;
+    setFull(e.matches);
+  });
+
   document.addEventListener("fullscreenchange", () => {
     if (!document.fullscreenElement && document.body.classList.contains("note-full")) setFull(false);
     else requestAnimationFrame(layoutNote);
@@ -1306,7 +1325,8 @@
     else if (document.body.classList.contains("note-full")) setFull(false);
   });
 
-  for (const [id, key] of [["#opt-even", "even"], ["#opt-spread", "spread"], ["#opt-haptics", "haptics"]]) {
+  for (const [id, key] of [["#opt-even", "even"], ["#opt-spread", "spread"],
+                           ["#opt-haptics", "haptics"], ["#opt-autofull", "autoFull"]]) {
     const el = $(id);
     el.checked = !!state.settings[key];
     el.addEventListener("change", () => { state.settings[key] = el.checked; save(); });

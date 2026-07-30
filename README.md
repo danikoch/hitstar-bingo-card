@@ -38,6 +38,7 @@ and it runs.
 | Even distribution | Every colour gets the same share of the 25 fields (with 5 colours: exactly 5 each). Off = each field is drawn independently, so the counts wobble. |
 | Avoid neighbouring twins | Re-draws the card a few times and keeps the one where the fewest identical colours touch, so it looks properly mixed. |
 | Vibration | Short buzz when marking a field. Ignored on iOS, which does not support the vibration API. |
+| Landscape opens the field | Off by default. Turn the phone sideways and the text field goes fullscreen; turn it back and it returns. Applies from the next turn of the phone, not the moment you flip the switch. |
 
 ## The field under the card
 
@@ -104,6 +105,21 @@ fit one.
 
 With reduced motion enabled the wheel jumps straight to its result instead of spinning.
 
+### Landscape opens the field
+
+With that switch on, the field takes the whole screen whenever the phone is in landscape, and
+goes back to the card when you turn it upright — handy for holding a big prompt up to the
+table without reaching for the expand button.
+
+It only ever does this to the card's field. Nothing happens while the **wheel** is open, since
+the wheel owns the screen, and nothing happens while the **settings sheet** is open, which
+would otherwise be covered as you read it. You can still minimise by hand in landscape, and it
+stays minimised until the next time you turn the phone.
+
+One browser limitation: an orientation change is not a tap, and browsers only grant real
+fullscreen off a user gesture. The panel covers the screen either way; the browser's own
+address bar may stay visible where tapping the expand button would have hidden it.
+
 ## Layout
 
 Portrait stacks the card and the field. In landscape — from 620px wide up, so a phone on its
@@ -152,7 +168,7 @@ There is nothing to compile.
 ## Notes for hacking on it
 
 - Changed something and the phone still shows the old version? Bump `CACHE` in `sw.js`
-  (`hitstar-bingo-v7` → `-v8`); the old cache is dropped on the next visit.
+  (`hitstar-bingo-v8` → `-v9`); the old cache is dropped on the next visit.
 - The text is fitted by binary-searching the font size against a hidden measuring element.
   Three traps live here, all commented in the source:
   1. That element shares its typography with the textarea through one CSS rule
