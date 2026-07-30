@@ -25,6 +25,8 @@ and it runs.
   a reload or an accidentally closed tab.
 - **Installable and offline capable** (PWA) — add to the home screen, works with no
   connection at the party.
+- **Category wheel** — a fullscreen spinning wheel of your colours, each with an editable
+  category, for the phone that runs the game rather than playing a card.
 - **Turn the phone sideways** and the field moves to the right of the grid, where both get
   far more room than stacked.
 - Dark and light mode, follows the phone's setting. Fits any screen without scrolling.
@@ -67,6 +69,20 @@ Notes on behaviour:
   and it roughly doubles. That is the trick for showing something to the whole table.
 - A drawing made fullscreen can be taller than the small panel; it is kept in full and
   reappears when you expand again, but it is cropped while minimised.
+
+## The category wheel
+
+The wheel button in the header opens a fullscreen wheel — meant for whoever is running the
+game on a phone that is not playing a card. One wedge per colour, each labelled with that
+colour's **category**, which you type in the settings sheet. There is no second list to keep
+in sync: the palette *is* the category list, and edits show up on the wheel straight away.
+
+Tap the wheel to spin. When it stops, the winning colour fills a band across the screen with
+its category on top, big enough to read out to the table — the colour tells players which
+fields to look for, the category tells them what to do. Tap again to re-spin; Escape or the ×
+closes the wheel. Nothing here touches the card: no marks change, and no new card is dealt.
+
+With reduced motion enabled the wheel jumps straight to its result instead of spinning.
 
 ## Layout
 
@@ -116,7 +132,7 @@ There is nothing to compile.
 ## Notes for hacking on it
 
 - Changed something and the phone still shows the old version? Bump `CACHE` in `sw.js`
-  (`hitstar-bingo-v6` → `-v7`); the old cache is dropped on the next visit.
+  (`hitstar-bingo-v7` → `-v8`); the old cache is dropped on the next visit.
 - The text is fitted by binary-searching the font size against a hidden measuring element.
   Three traps live here, all commented in the source:
   1. That element shares its typography with the textarea through one CSS rule
@@ -133,6 +149,12 @@ There is nothing to compile.
   *width*, so no stroke distorts when the field changes shape. `centreInk()` then offsets
   them vertically, and is deliberately only called on a layout change — recomputing it
   per stroke would make the drawing crawl as you draw.
+- The wheel picks its winner *first* and then turns to it: the final angle is a few whole
+  turns plus whatever centres that wedge under the pin. Spinning by a random amount and
+  reading off where it stopped would make fairness depend on the easing curve and land
+  ambiguously on wedge boundaries.
+- Wedge labels run along the radius, and are flipped where the wedge's angle falls between
+  90° and 270° — without that they render upside down on that side of the wheel.
 - Two layout cycles are deliberately avoided in landscape, and both showed up as a grid
   that never stopped resizing:
   1. An `auto` first column takes its width from the card, whose width comes from its
