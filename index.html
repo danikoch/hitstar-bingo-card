@@ -978,6 +978,21 @@
     noteChrome(); fitNote(); save();
   });
 
+  /* Tidy up once you are done, not while typing: stripping a trailing space on
+     every keystroke would eat the space you just pressed between two words. */
+  noteEl.addEventListener("blur", () => {
+    const tidy = noteEl.value.replace(/\s*\n+\s*/g, " ").trim();
+    if (tidy === noteEl.value) return;
+    noteEl.value = tidy;
+    state.note = tidy;
+    noteChrome(); fitNote(); save();
+  });
+
+  // the field is a single line of text that wraps by itself, so Enter means done
+  noteEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); noteEl.blur(); }
+  });
+
   noteClear.addEventListener("click", () => {
     if (drawMode) {
       pushUndo();

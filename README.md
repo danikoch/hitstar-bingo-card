@@ -56,6 +56,11 @@ The buttons in its top-right corner, left to right:
 
 Notes on behaviour:
 
+- The field holds one line of text that wraps by itself. Enter finishes editing rather than
+  starting a paragraph, and when you are done the text is tidied: spaces at either end are
+  trimmed and any line breaks (from a paste, say) collapse to a single space. The tidying
+  happens when you leave the field, never mid-keystroke — stripping a trailing space as you
+  type would eat the space you just pressed between two words.
 - Text is independent of the card, so clearing the marks leaves it alone. Dealing a **new
   card** does clear the drawing, since it belongs to the round that just ended — the
   confirmation names exactly what you are about to lose.
@@ -116,7 +121,7 @@ There is nothing to compile.
 ## Notes for hacking on it
 
 - Changed something and the phone still shows the old version? Bump `CACHE` in `sw.js`
-  (`hitstar-bingo-v6` → `-v7`); the old cache is dropped on the next visit.
+  (`hitstar-bingo-v7` → `-v8`); the old cache is dropped on the next visit.
 - The text is fitted by binary-searching the font size against a hidden measuring element.
   Three traps live here, all commented in the source:
   1. That element shares its typography with the textarea through one CSS rule
