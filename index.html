@@ -473,9 +473,13 @@
        track's automatic minimum out of it too. */
     #note-wrap { height: 100%; min-height: 0; }
 
+    /* An empty gutter mirrors the band, so the wheel sits in the middle of the
+       screen rather than the middle of what is left over. fitWheel() replaces
+       the centre track with the wheel's exact width — `auto` there would take
+       its width from the wheel, whose width comes from this row's height. */
     #wheel-view {
-      grid-template-areas: "close close" "stage band";
-      grid-template-columns: 1fr minmax(200px, 38%);
+      grid-template-areas: "close close close" ". stage band";
+      grid-template-columns: 1fr auto 1fr;
       grid-template-rows: auto 1fr;
     }
     #wheel-band { height: 100%; min-height: 0; }
@@ -589,6 +593,10 @@
   "use strict";
 
   const SIZE = 5, CELLS = SIZE * SIZE, KEY = "hitstar-bingo-v1";
+
+  /* Declared up here because both the card's and the wheel's sizing read it, and
+     the wheel's code comes first. Must match the media query in the stylesheet. */
+  const WIDE = matchMedia("(orientation: landscape) and (min-width: 620px)");
 
   const PRESETS = [
     { name: "Hitstar",  colors: ["#e63946", "#f77f00", "#fcbf49", "#2a9d8f", "#4361ee"] },
@@ -1373,8 +1381,21 @@
       pal.map((c, i) => (c.name || "").trim() || `colour ${i + 1}`).join(", "));
   }
 
+  const MIN_BAND = 200;      // the result band never gets narrower than this
+
   function fitWheel() {
-    const side = Math.floor(Math.min(wheelStage.clientWidth, wheelStage.clientHeight));
+    if (wheelView.hidden) return;
+    let side;
+    if (WIDE.matches) {
+      // from the row height, not the stage width — that is the track being set
+      const inner = wheelView.clientWidth - 24;
+      const cap = inner - 20 - 2 * MIN_BAND;
+      side = Math.floor(Math.min(wheelStage.clientHeight, Math.max(140, cap)));
+      if (side > 0) wheelView.style.gridTemplateColumns = `1fr ${side}px 1fr`;
+    } else {
+      wheelView.style.gridTemplateColumns = "";
+      side = Math.floor(Math.min(wheelStage.clientWidth, wheelStage.clientHeight));
+    }
     if (side > 0) wheelBox.style.setProperty("--wside", side + "px");
     drawWheel();
     if (winner !== null) fitBand();
@@ -1466,8 +1487,6 @@
   /* ------------------------------------------------- keep the card square */
 
   const main = document.querySelector("main");
-  // must match the media query in the stylesheet
-  const WIDE = matchMedia("(orientation: landscape) and (min-width: 620px)");
   const MIN_FIELD = 220;      // never squeeze the field below this in landscape
 
   function fit() {
