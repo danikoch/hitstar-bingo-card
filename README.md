@@ -25,6 +25,8 @@ and it runs.
   a reload or an accidentally closed tab.
 - **Installable and offline capable** (PWA) — add to the home screen, works with no
   connection at the party.
+- **Turn the phone sideways** and the field moves to the right of the grid, where both get
+  far more room than stacked.
 - Dark and light mode, follows the phone's setting. Fits any screen without scrolling.
 
 ## Card options
@@ -66,6 +68,19 @@ Notes on behaviour:
 - A drawing made fullscreen can be taller than the small panel; it is kept in full and
   reappears when you expand again, but it is cropped while minimised.
 
+## Layout
+
+Portrait stacks the card and the field. In landscape — from 620px wide up, so a phone on its
+side or a desktop window, but not a narrow or nearly square one — the field moves beside the
+card instead. Stacked, the two fight over the same height and both lose; side by side the
+card takes the full height and the field takes the width left over. On a 839×412 phone in
+landscape that is the difference between a 586×87 letterbox holding 25px text and a 465×338
+panel holding 130px text, with the card growing from ~230px to 338px at the same time.
+
+The card's column width is set by `fit()` rather than by an `auto` track, and the field is
+`height: 100%` rather than `auto`. Both matter — see the comments in the source, and the
+notes below.
+
 ## Running it
 
 **Locally** — just open `index.html` in a browser. Double-click works, `file://` works.
@@ -101,7 +116,7 @@ There is nothing to compile.
 ## Notes for hacking on it
 
 - Changed something and the phone still shows the old version? Bump `CACHE` in `sw.js`
-  (`hitstar-bingo-v4` → `-v5`); the old cache is dropped on the next visit.
+  (`hitstar-bingo-v5` → `-v6`); the old cache is dropped on the next visit.
 - The text is fitted by binary-searching the font size against a hidden measuring element.
   Three traps live here, all commented in the source:
   1. That element shares its typography with the textarea through one CSS rule
@@ -118,6 +133,14 @@ There is nothing to compile.
   *width*, so no stroke distorts when the field changes shape. `centreInk()` then offsets
   them vertically, and is deliberately only called on a layout change — recomputing it
   per stroke would make the drawing crawl as you draw.
+- Two layout cycles are deliberately avoided in landscape, and both showed up as a grid
+  that never stopped resizing:
+  1. An `auto` first column takes its width from the card, whose width comes from its
+     height, which comes from the row — so `fit()` sets that track's width in pixels
+     instead.
+  2. An `auto`-height field grows to fit its text, but its text is sized to fit the field:
+     the box grew from the text, the row from the box, the card from the row, and the text
+     refitted into the bigger box. `height: 100%` plus `min-height: 0` breaks it.
 - Saved state lives in `localStorage` under `hitstar-bingo-v1`. Clearing site data resets
   everything to the default palette.
 - Deleting a colour does not damage a card already in play — those fields keep the colour
