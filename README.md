@@ -25,6 +25,8 @@ and it runs.
   a reload or an accidentally closed tab.
 - **Installable and offline capable** (PWA) — add to the home screen, works with no
   connection at the party.
+- **Category wheel** — a fullscreen spinning wheel of your colours, each with an editable
+  category, for the phone that runs the game rather than playing a card.
 - **Turn the phone sideways** and the field moves to the right of the grid, where both get
   far more room than stacked.
 - Dark and light mode, follows the phone's setting. Fits any screen without scrolling.
@@ -72,6 +74,40 @@ Notes on behaviour:
   and it roughly doubles. That is the trick for showing something to the whole table.
 - A drawing made fullscreen can be taller than the small panel; it is kept in full and
   reappears when you expand again, but it is cropped while minimised.
+
+## The category wheel
+
+The wheel button in the header opens a fullscreen wheel — meant for whoever is running the
+game on a phone that is not playing a card. One wedge per colour, each labelled with that
+colour's **category**, which you type in the settings sheet. There is no second list to keep
+in sync: the palette *is* the category list, and edits show up on the wheel straight away.
+
+The defaults, matching the starting palette:
+
+| Colour | Category |
+| --- | --- |
+| Red | Jahrzehnt |
+| Orange | 3 Jahre |
+| Yellow | Song |
+| Green | Exaktes Jahr |
+| Blue | Interpret |
+
+Switching colour **preset** swaps the colours and keeps your categories — a preset is a
+colour scheme, not a set of categories. A colour you add starts with no category, for you to
+fill in.
+
+Tap the wheel to spin. When it stops, the winning colour fills a band with its category on
+top, big enough to read out to the table — the colour tells players which fields to look for,
+the category tells them what to do. Tap again to re-spin; Escape or the × closes the wheel.
+Nothing here touches the card: no marks change, and no new card is dealt.
+
+The wheel gets first claim on the space. The band is sized to its text rather than to a slice
+of the screen, and in landscape it takes only the width the wheel cannot use anyway — the
+wheel is as large as the screen's *height* allows, with an empty gutter mirroring the band so
+it stays centred. A long category wraps onto two or three big lines instead of shrinking to
+fit one.
+
+With reduced motion enabled the wheel jumps straight to its result instead of spinning.
 
 ## Layout
 
@@ -138,6 +174,12 @@ There is nothing to compile.
   *width*, so no stroke distorts when the field changes shape. `centreInk()` then offsets
   them vertically, and is deliberately only called on a layout change — recomputing it
   per stroke would make the drawing crawl as you draw.
+- The wheel picks its winner *first* and then turns to it: the final angle is a few whole
+  turns plus whatever centres that wedge under the pin. Spinning by a random amount and
+  reading off where it stopped would make fairness depend on the easing curve and land
+  ambiguously on wedge boundaries.
+- Wedge labels run along the radius, and are flipped where the wedge's angle falls between
+  90° and 270° — without that they render upside down on that side of the wheel.
 - Two layout cycles are deliberately avoided in landscape, and both showed up as a grid
   that never stopped resizing:
   1. An `auto` first column takes its width from the card, whose width comes from its
@@ -152,6 +194,11 @@ There is nothing to compile.
   something to lose. Same applies to `alert()` and `prompt()`.
 - Saved state lives in `localStorage` under `hitstar-bingo-v1`. Clearing site data resets
   everything to the default palette.
+- `adoptDefaultCategories()` gives the default categories to installs saved before they
+  existed, but only when the palette is provably untouched — same colours, every name still a
+  `Colour N` placeholder. Rename or recolour anything and it leaves you alone. It sits below
+  `save()` because it writes its result back, and `save()`'s timer variable is not
+  initialised any earlier.
 - Deleting a colour does not damage a card already in play — those fields keep the colour
   they were dealt. Editing a colour recolours the running card immediately.
 - The starting palette and the presets are the `PRESETS` array at the top of the script.
